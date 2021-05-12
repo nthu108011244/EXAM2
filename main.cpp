@@ -198,7 +198,6 @@ void detectionMode() {
    while (1) {
       if (if_detection_mode) {
          if_gesture_mode = 0;
-         for (int i = 1; i <= 3; i++) {
             ThisThread::sleep_for(3000ms);
             cout << endl;
             for (int i = 0; i < 10; i++) {
@@ -208,7 +207,6 @@ void detectionMode() {
                cout << myanalysis[i] << endl;
             }
             cout << endl;
-         }
          if_detection_mode = 0;
       }
    }
