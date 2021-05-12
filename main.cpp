@@ -198,10 +198,12 @@ void detectionMode() {
    while (1) {
       if (if_detection_mode) {
          if_gesture_mode = 0;
+         ThisThread::sleep_for(1000ms);
          cout << endl;
          for (int i = 0; i < 10; i++) {
             cout << tfanalysis[i] << " ";
          }
+         cout << endl;
          for (int i = 0; i < 10; i++) {
             cout << myanalysis[i] << " ";
          }
