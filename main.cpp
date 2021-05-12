@@ -64,10 +64,10 @@ uLCD_4DGL uLCD(D1, D0, D2);
 /* ML variable */
 constexpr int kTensorArenaSize = 60 * 1024;
 uint8_t tensor_arena[kTensorArenaSize];
-
 ////////////////////////////////////////////////////////////
 /* accelerometer variable */
-int16_t acc_data_XYZ[3] = {0};
+int16_t acc_data_XYZ_pre[3] = {0};
+int16_t acc_data_XYZ_aft[3] = {0};
 
 ////////////////////////////////////////////////////////////
 /* MQTT variable */
@@ -78,6 +78,13 @@ volatile int arrivedcount = 0;
 volatile bool closed = false;
 const char* topic = "Mbed";
 MQTT::Client<MQTTNetwork, Countdown> *global_client;
+
+////////////////////////////////////////////////////////////
+/* capture mode */
+int tfanalysis[10];
+int myanalisis[10];
+int xyzdata[2][3];
+bool mysensor = 0;
 
 ////////////////////////////////////////////////////////////
 /* thres angel */
@@ -94,7 +101,7 @@ void publish_message(MQTT::Client<MQTTNetwork, Countdown>* client);
 void messageArrived(MQTT::MessageData& md);
 void close_mqtt();
 void gestureMode();
-void gestureMode_gestureVerify();
+int  gestureMode_gestureVerify();
 int  PredictGesture(float* output);
 void detectionMode();
 
@@ -161,58 +168,41 @@ void uLCDDisplay(double inform) {
    }
 }
 void gestureMode() {
+   int temp;
    while (1) {
       if (if_gesture_mode) {
          if_detection_mode = 0;
-         uLCDInit();
-         uLCDDisplay(thres_angle_table[thres_angle_mode]);
-         gestureMode_gestureVerify();
+         BSP_ACCELERO_Init();
+         for (int i = 0; i < 10; i++) {
+            uLCDInit();
+            mysensor = 1;
+            temp = gestureMode_gestureVerify();
+            mysensor = 0;
+            tfanalysis[i] = temp;
+         }
+         cout << "tfanalysis:\n";
+         for (int i = 0; i < 10; i++) {
+            cout << tfanalysis[i] << endl;
+         }
       }
    }
 }
 void detectionMode() {
-   bool acc_init = 0;
-   double acc_stanZ = 0;
-   double curr_angel;   
-
    while (1) {
-      if (if_detection_mode) {
-         if_gesture_mode = 0;
-
-         if (acc_init == 0) {
-            acc_init = 1;
-            uLCDInit();
-            BSP_ACCELERO_Init();
-            thres_over_counter = 0;
-            for (int i = 1; i <= 10; i++) {
-               BSP_ACCELERO_AccGetXYZ(acc_data_XYZ);
-               acc_stanZ += acc_data_XYZ[2];
-            }
-            acc_stanZ /= 10;
+      if (if_gesture_mode) {
+         if_detection_mode = 0;
+         for (int i = 0; i < 10;) {
+            while (!mysensor) {}
+            BSP_ACCELERO_AccGetXYZ(acc_data_XYZ_pre);
+            while (mysensor) {}
+            BSP_ACCELERO_AccGetXYZ(acc_data_XYZ_aft);
+            myanalisis[i] = (acc_data_XYZ_aft > acc_data_XYZ_pre);
+            i++;
          }
-
-         BSP_ACCELERO_AccGetXYZ(acc_data_XYZ);
-         curr_angel = acos(acc_data_XYZ[2] / acc_stanZ) * 180 / PI;
-         if (curr_angel >= thres_angle_table[thres_angle_mode]) {
-            thres_over_counter++;
-            publish_message(global_client);
+         cout << "myanalysis:\n";
+         for (int i = 0; i < 10; i++) {
+            cout << myanalisis[i] << endl;
          }
-         
-         cout << "[Tilt Angle Detection Mode]: " << curr_angel << " (over thres angel: " << thres_over_counter << " times)" << endl;
-         cout << "******************" << acc_init << endl;
-         uLCDDisplay(curr_angel);
-
-         if (thres_over_counter >= 9) {
-            thres_over_counter = 0;
-            if_detection_mode = 0;
-            acc_init = 0;
-            acc_stanZ = 0;
-            uLCDInit();
-         }
-         ThisThread::sleep_for(10ms);
-      }
-      else {
-         acc_init = 0;
       }
    }
 }
@@ -238,7 +228,7 @@ void publish_MQTT()  {
     global_client = &client;
 
     //TODO: revise host to your IP
-    const char* host = "172.20.10.12";
+    const char* host = "192.168.31.205";
     printf("Connecting to TCP network...\r\n");
 
     SocketAddress sockAddr;
@@ -319,7 +309,7 @@ void publish_message(MQTT::Client<MQTTNetwork, Countdown>* client) {
     printf("rc:  %d\r\n", rc);
     printf("Puslish message: %s\r\n", buff);
 }
-void gestureMode_gestureVerify() {
+int gestureMode_gestureVerify() {
    // Whether we should clear the buffer next time we fetch data
   bool should_clear_buffer = false;
   bool got_data = false;
@@ -421,13 +411,15 @@ void gestureMode_gestureVerify() {
          if (thres_angle_mode < thres_angle_mode_max - 1) thres_angle_mode++;
          else thres_angle_mode = thres_angle_mode_max - 1;
          cout << "[Gesture UI Mode]: threshold angel = " << thres_angle_table[thres_angle_mode];
-         uLCDDisplay(thres_angle_table[thres_angle_mode]);
+         uLCDDisplay(gesture_index);
+         return 0;
       }
       else if (gesture_index == 1) {
          if (thres_angle_mode > 0) thres_angle_mode--;
          else thres_angle_mode = 0;
          cout << "[Gesture UI Mode]: threshold angel = " << thres_angle_table[thres_angle_mode];
-         uLCDDisplay(thres_angle_table[thres_angle_mode]);
+         uLCDDisplay(gesture_index);
+         return 1;
       }
       
     // Produce an output
