@@ -82,7 +82,7 @@ MQTT::Client<MQTTNetwork, Countdown> *global_client;
 ////////////////////////////////////////////////////////////
 /* capture mode */
 int tfanalysis[10];
-int myanalisis[10];
+int myanalysis[10];
 int xyzdata[2][3];
 bool mysensor = 0;
 
@@ -112,7 +112,7 @@ int main() {
    gesture_thread.start(callback(&gesture_queue, &EventQueue::dispatch_forever));
    detection_thread.start(callback(&detection_queue, &EventQueue::dispatch_forever));
    publish_thread.start(callback(&publish_queue, &EventQueue::dispatch_forever));
-    uLCDDisplay(0);
+   uLCDDisplay(0);
    readRPCCommand();
 }
 
@@ -172,18 +172,24 @@ void gestureMode() {
    while (1) {
       if (if_gesture_mode) {
          if_detection_mode = 0;
+         uLCDDisplay(0);
          BSP_ACCELERO_Init();
          for (int i = 0; i < 10; i++) {
-            uLCDInit();
-            mysensor = 1;
+            BSP_ACCELERO_AccGetXYZ(acc_data_XYZ_pre);
             temp = gestureMode_gestureVerify();
-            mysensor = 0;
+            BSP_ACCELERO_AccGetXYZ(acc_data_XYZ_aft);
             tfanalysis[i] = temp;
+            myanalysis[i] = (acc_data_XYZ_aft[2] > acc_data_XYZ_pre[2]);
          }
-         cout << "tfanalysis:\n";
+         cout << "\ntfanalysis:";
          for (int i = 0; i < 10; i++) {
-            cout << tfanalysis[i] << endl;
+            cout << tfanalysis[i] << " ";
          }
+         cout << "\nmyanalysis:";
+         for (int i = 0; i < 10; i++) {
+            cout << myanalysis[i] << " ";
+         }
+         cout << endl;
       }
    }
 }
@@ -191,18 +197,6 @@ void detectionMode() {
    while (1) {
       if (if_gesture_mode) {
          if_detection_mode = 0;
-         for (int i = 0; i < 10;) {
-            while (!mysensor) {}
-            BSP_ACCELERO_AccGetXYZ(acc_data_XYZ_pre);
-            while (mysensor) {}
-            BSP_ACCELERO_AccGetXYZ(acc_data_XYZ_aft);
-            myanalisis[i] = (acc_data_XYZ_aft > acc_data_XYZ_pre);
-            i++;
-         }
-         cout << "myanalysis:\n";
-         for (int i = 0; i < 10; i++) {
-            cout << myanalisis[i] << endl;
-         }
       }
    }
 }
@@ -410,14 +404,16 @@ int gestureMode_gestureVerify() {
       if (gesture_index == 0) {
          if (thres_angle_mode < thres_angle_mode_max - 1) thres_angle_mode++;
          else thres_angle_mode = thres_angle_mode_max - 1;
-         cout << "[Gesture UI Mode]: threshold angel = " << thres_angle_table[thres_angle_mode];
+         cout << "tf = 0\n";
+         uLCDInit();
          uLCDDisplay(gesture_index);
          return 0;
       }
       else if (gesture_index == 1) {
          if (thres_angle_mode > 0) thres_angle_mode--;
          else thres_angle_mode = 0;
-         cout << "[Gesture UI Mode]: threshold angel = " << thres_angle_table[thres_angle_mode];
+         cout << "tf = 1\n";
+         uLCDInit();
          uLCDDisplay(gesture_index);
          return 1;
       }
