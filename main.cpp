@@ -190,12 +190,22 @@ void gestureMode() {
             cout << myanalysis[i] << " ";
          }
          cout << endl;
+         publish_message(global_client);
       }
    }
 }
 void detectionMode() {
    while (1) {
-      if (if_gesture_mode) {
+      if (if_detection_mode) {
+         if_gesture_mode = 0;
+         cout << endl;
+         for (int i = 0; i < 10; i++) {
+            cout << tfanalysis[i] << " ";
+         }
+         for (int i = 0; i < 10; i++) {
+            cout << myanalysis[i] << " ";
+         }
+         cout << endl;
          if_detection_mode = 0;
       }
    }
@@ -282,9 +292,9 @@ void publish_message(MQTT::Client<MQTTNetwork, Countdown>* client) {
     MQTT::Message message;
     char buff[100];
     if (if_gesture_mode) {
-       sprintf(buff, "%d (thres angel)\r\n", thres_angle_table[thres_angle_mode]);
+       sprintf(buff, "0 (capture mode -> RPC loop)\r\n");
+       printf("/LEDControl/run 1 0\r\n");
        if_gesture_mode = 0;
-       uLCDDisplay(0);
     }
     else if (if_detection_mode) {
        sprintf(buff, "%d (overtilt times)\r\n", thres_over_counter);
@@ -417,13 +427,19 @@ int gestureMode_gestureVerify() {
          uLCDDisplay(gesture_index);
          return 1;
       }
+      if (gesture_index == 2) {
+         if (thres_angle_mode < thres_angle_mode_max - 1) thres_angle_mode++;
+         else thres_angle_mode = thres_angle_mode_max - 1;
+         cout << "tf = 2\n";
+         uLCDInit();
+         uLCDDisplay(gesture_index);
+         return 2;
+      }
       
     // Produce an output
     if (gesture_index < label_num) {
       error_reporter->Report(config.output_message[gesture_index]);
     }
-
-      
   }
 }
 void messageArrived(MQTT::MessageData& md) {
